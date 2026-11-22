@@ -10,6 +10,15 @@ import {
   BarChart2,
 } from 'lucide-react';
 
+const FEEDBACK_PREFIX = '[LINKED_FEEDBACK]';
+
+const cleanFeedbackLabel = (rawText) => {
+  const stripped = String(rawText || '')
+    .replaceAll(FEEDBACK_PREFIX, '')
+    .trim();
+  return stripped || 'Feedback (Optional)';
+};
+
 export default function StudentPoll({ pollId }) {
   const [poll, setPoll] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -65,18 +74,28 @@ export default function StudentPoll({ pollId }) {
     e.preventDefault();
     setError('');
 
+    // Require answers for MCQ and Rating questions; Feedback ('text') is optional
     for (const q of questions) {
+      if (q.question_type === 'text') continue;
       if (!answers[q.id] || String(answers[q.id]).trim() === '') {
-        setError('Please answer all questions before submitting.');
+        setError('Please answer all required questions before submitting.');
         return;
       }
     }
+
+    // Clean out blank optional feedback strings before saving
+    const cleanedAnswers = {};
+    Object.entries(answers).forEach(([qId, val]) => {
+      if (val !== undefined && val !== null && String(val).trim() !== '') {
+        cleanedAnswers[qId] = typeof val === 'string' ? val.trim() : val;
+      }
+    });
 
     setSubmitting(true);
     const { error: insertError } = await supabase.from('responses').insert([
       {
         poll_id: pollId,
-        answers,
+        answers: cleanedAnswers,
       },
     ]);
 
@@ -88,6 +107,21 @@ export default function StudentPoll({ pollId }) {
     }
     setSubmitting(false);
   };
+
+  // Group linked feedback rows under their parent question so students see one clean card
+  const groupedQuestions = [];
+  for (let i = 0; i < questions.length; i++) {
+    const current = questions[i];
+    const isLinkedFeedback =
+      current.question_type === 'text' &&
+      String(current.question_text || '').startsWith(FEEDBACK_PREFIX);
+
+    if (isLinkedFeedback && groupedQuestions.length > 0) {
+      groupedQuestions[groupedQuestions.length - 1].linkedFeedback = current;
+    } else {
+      groupedQuestions.push({ ...current, linkedFeedback: null });
+    }
+  }
 
   if (loading) {
     return (
@@ -200,7 +234,7 @@ export default function StudentPoll({ pollId }) {
 
         {/* Questions Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
-          {questions.map((q, index) => (
+          {groupedQuestions.map((q, index) => (
             <div
               key={q.id}
               className="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-5 sm:p-6 backdrop-blur shadow-lg"
@@ -211,7 +245,7 @@ export default function StudentPoll({ pollId }) {
                   {index + 1}
                 </span>
                 <p className="text-white font-semibold text-base sm:text-lg leading-snug">
-                  {q.question_text}
+                  {cleanFeedbackLabel(q.question_text)}
                 </p>
               </div>
 
@@ -273,7 +307,7 @@ export default function StudentPoll({ pollId }) {
                 </div>
               )}
 
-              {/* Short Text with 0 / 300 Counter */}
+              {/* Standalone Optional Feedback */}
               {q.question_type === 'text' && (
                 <div>
                   <textarea
@@ -281,11 +315,31 @@ export default function StudentPoll({ pollId }) {
                     maxLength={300}
                     value={answers[q.id] || ''}
                     onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                    placeholder="Type your answer here..."
+                    placeholder="Type your feedback here (optional)..."
                     className="w-full bg-[#0B0F19]/80 border border-slate-800 rounded-2xl p-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
                   />
                   <div className="text-right text-[11px] text-slate-500 mt-1.5 font-medium">
                     {(answers[q.id] || '').length} / 300
+                  </div>
+                </div>
+              )}
+
+              {/* Optional Feedback Attached Below This Question */}
+              {q.linkedFeedback && (
+                <div className="mt-5 pt-4 border-t border-slate-800/80">
+                  <label className="block text-xs font-semibold text-emerald-300 mb-2">
+                    {cleanFeedbackLabel(q.linkedFeedback.question_text)}
+                  </label>
+                  <textarea
+                    rows={2}
+                    maxLength={300}
+                    value={answers[q.linkedFeedback.id] || ''}
+                    onChange={(e) => handleAnswerChange(q.linkedFeedback.id, e.target.value)}
+                    placeholder="Optional feedback..."
+                    className="w-full bg-[#0B0F19]/80 border border-slate-800 rounded-2xl p-3.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
+                  />
+                  <div className="text-right text-[11px] text-slate-500 mt-1 font-medium">
+                    {(answers[q.linkedFeedback.id] || '').length} / 300
                   </div>
                 </div>
               )}
