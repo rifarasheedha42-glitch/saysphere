@@ -132,6 +132,10 @@ export default function Dashboard({ user, role = 'faculty' }) {
   const [pollToDelete, setPollToDelete] = useState(null);
   const [deletingPoll, setDeletingPoll] = useState(false);
 
+  // In-page Reset Responses Confirmation Modal state
+  const [pollToReset, setPollToReset] = useState(null); // { poll, count }
+  const [resettingPoll, setResettingPoll] = useState(false);
+
   // QR Modal & Card Quick-Copy state
   const [qrPoll, setQrPoll] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -1126,17 +1130,18 @@ export default function Dashboard({ user, role = 'faculty' }) {
     setSaving(false);
   }
 
-  // RESET ALL RESPONSES FOR A POLL
-  async function handleResetResponses(poll, customCount) {
+  // OPEN IN-PAGE RESET MODAL
+  function handleResetResponses(poll, customCount) {
     const countToShow =
       typeof customCount === 'number' ? customCount : responses.length;
-    if (
-      !window.confirm(
-        `Reset "${poll.title}"? This will permanently delete all ${countToShow} saved student responses so you can reuse it fresh.`
-      )
-    ) {
-      return;
-    }
+    setPollToReset({ poll, count: countToShow });
+  }
+
+  // CONFIRM & RESET ALL RESPONSES FOR A POLL
+  async function confirmResetResponses() {
+    if (!pollToReset) return;
+    setResettingPoll(true);
+    const { poll } = pollToReset;
 
     const { error } = await supabase.from('responses').delete().eq('poll_id', poll.id);
 
@@ -1150,7 +1155,10 @@ export default function Dashboard({ user, role = 'faculty' }) {
         ...prev,
         [poll.id]: [],
       }));
+      setPollToReset(null);
     }
+
+    setResettingPoll(false);
   }
 
   async function toggleStatus(poll) {
@@ -3080,6 +3088,56 @@ export default function Dashboard({ user, role = 'faculty' }) {
                 className="px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white transition cursor-pointer"
               >
                 {deletingPoll ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* IN-PAGE RESET RESPONSES CONFIRMATION POPUP */}
+      {pollToReset && (
+        <div className="fixed inset-0 bg-slate-950/45 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white text-slate-900 border border-slate-200 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-red-50 border border-red-200 text-red-600 flex items-center justify-center shrink-0">
+                  <RotateCcw className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900">Reset Responses?</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPollToReset(null)}
+                disabled={resettingPoll}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Reset <strong className="text-slate-900">"{pollToReset.poll.title}"</strong>? This
+              will permanently delete all{' '}
+              <strong className="text-slate-900">{pollToReset.count}</strong> saved responses so you
+              can reuse it fresh.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setPollToReset(null)}
+                disabled={resettingPoll}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmResetResponses}
+                disabled={resettingPoll}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white transition cursor-pointer"
+              >
+                {resettingPoll ? 'Resetting...' : 'Reset to 0'}
               </button>
             </div>
           </div>
