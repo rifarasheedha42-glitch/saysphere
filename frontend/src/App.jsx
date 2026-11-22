@@ -6,11 +6,21 @@ import StudentPoll from './StudentPoll';
 
 const ALLOWED_DOMAIN = '@bitsathy.ac.in';
 
+function getBitsathyRole(email) {
+  if (!email) return 'invalid';
+  const normalized = email.trim().toLowerCase();
+  if (!normalized.endsWith(ALLOWED_DOMAIN)) return 'invalid';
+
+  const localPart = normalized.split('@')[0];
+  return /\d/.test(localPart) ? 'student' : 'faculty';
+}
+
 export default function App() {
   const [session, setSession] = useState(null);
+  const [role, setRole] = useState('faculty'); // 'faculty' | 'student'
   const [loading, setLoading] = useState(true);
 
-  // Check if a student opened a QR code link (e.g., /?poll=12345)
+  // Check if someone opened a QR code link (e.g., /?poll=12345)
   const params = new URLSearchParams(window.location.search);
   const pollId = params.get('poll');
 
@@ -26,25 +36,28 @@ export default function App() {
 
     const handleSession = async (currentSession) => {
       if (currentSession) {
-        const userEmail = currentSession.user?.email?.toLowerCase() || '';
-        if (!userEmail.endsWith(ALLOWED_DOMAIN)) {
+        const userEmail = currentSession.user?.email || '';
+        const detectedRole = getBitsathyRole(userEmail);
+
+        if (detectedRole === 'invalid') {
           await supabase.auth.signOut();
           alert(`Access denied. Please sign in with a ${ALLOWED_DOMAIN} email.`);
           setSession(null);
           setLoading(false);
           return;
         }
+
+        setRole(detectedRole);
       }
+
       setSession(currentSession);
       setLoading(false);
     };
 
-    // Check current professor login session
     supabase.auth.getSession().then(({ data: { session } }) => {
       handleSession(session);
     });
 
-    // Listen for login / logout changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -54,7 +67,6 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, [pollId]);
 
-  // If it's a student QR link, show the Student Poll page directly
   if (pollId) {
     return <StudentPoll pollId={pollId} />;
   }
@@ -67,6 +79,5 @@ export default function App() {
     );
   }
 
-  // If logged in, show Professor Dashboard; otherwise show Login / Sign Up
-  return session ? <Dashboard user={session.user} /> : <Auth />;
+  return session ? <Dashboard user={session.user} role={role} /> : <Auth />;
 }

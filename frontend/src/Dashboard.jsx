@@ -76,7 +76,9 @@ const createEmptyQuestion = () => ({
   feedback_prompt: 'Feedback (Optional)',
 });
 
-export default function Dashboard({ user }) {
+export default function Dashboard({ user, role = 'faculty' }) {
+  const roleLabel = role === 'student' ? 'Student' : 'Faculty';
+
   const [polls, setPolls] = useState([]);
   const [loading, setLoading] = useState(true);
   // 'list' | 'create' | 'results' | 'analytics' | 'session' | 'settings'
@@ -95,7 +97,7 @@ export default function Dashboard({ user }) {
     localStorage.setItem('saysphere_theme', theme);
   }, [theme]);
 
-  // Faculty Settings state (synced with Supabase user_metadata)
+  // Settings state (synced with Supabase user_metadata)
   const meta = user?.user_metadata || {};
   const initialName = meta.display_name || meta.full_name || '';
   const [displayName, setDisplayName] = useState(initialName);
@@ -439,11 +441,11 @@ export default function Dashboard({ user }) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(51, 65, 85);
-    const facultyLabel = displayName.trim() || 'Faculty Member';
+    const hostLabel = displayName.trim() || `${roleLabel} Member`;
     doc.text(
       `Total Anonymous Responses: ${responses.length}   |   Questions: ${
         visibleQuestions.length
-      }   |   Created: ${formatCreatedDate(selectedPoll.created_at)}   |   Faculty: ${facultyLabel}`,
+      }   |   Created: ${formatCreatedDate(selectedPoll.created_at)}   |   ${roleLabel}: ${hostLabel}`,
       margin + 4,
       y + 7.5
     );
@@ -1421,7 +1423,7 @@ export default function Dashboard({ user }) {
             </nav>
           </div>
 
-          {/* Bottom Faculty Account + Logout */}
+          {/* Bottom Account + Logout */}
           <div
             className={`p-4 border-t space-y-3 ${
               isLight ? 'border-slate-200' : 'border-slate-800/80'
@@ -1436,7 +1438,7 @@ export default function Dashboard({ user }) {
               }`}
             >
               <p className={`text-xs font-bold uppercase tracking-wider ${coloredLabel}`}>
-                {displayName.trim() || 'Faculty Account'}
+                {displayName.trim() || `${roleLabel} Account`}
               </p>
               <p className={`text-xs font-medium truncate mt-1 ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
                 {user?.email || ''}
@@ -1533,7 +1535,7 @@ export default function Dashboard({ user }) {
             <div className="space-y-6">
               <div>
                 <h2 className={`text-2xl sm:text-3xl font-bold tracking-tight ${headingText}`}>
-                  {displayName.trim() ? `Welcome, ${displayName.trim()}` : 'Faculty Dashboard'}
+                  {displayName.trim() ? `Welcome, ${displayName.trim()}` : `${roleLabel} Dashboard`}
                 </h2>
                 <p className={`text-sm font-medium mt-1 ${bodySubtext}`}>
                   Create anonymous classroom polls, project QR codes, and track live responses.
@@ -2894,7 +2896,7 @@ export default function Dashboard({ user }) {
               <UniversalBackButton label="Back to Overview" />
 
               <div>
-                <h2 className={`text-2xl font-bold ${headingText}`}>Faculty Settings</h2>
+                <h2 className={`text-2xl font-bold ${headingText}`}>{roleLabel} Settings</h2>
                 <p className={`text-sm font-medium mt-1 ${bodySubtext}`}>
                   Customize your profile display name, theme, and default poll behavior.
                 </p>
@@ -2947,7 +2949,7 @@ export default function Dashboard({ user }) {
                       type="text"
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="e.g., Faculty Name"
+                      placeholder={`e.g., ${roleLabel} Name`}
                       className={`w-full border rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:border-indigo-500 ${fieldBg}`}
                     />
                   </div>
@@ -3142,7 +3144,7 @@ export default function Dashboard({ user }) {
                   <strong>Created:</strong> {formatCreatedDate(selectedPoll.created_at)}
                 </span>
                 <span>
-                  <strong>Faculty:</strong> {displayName.trim() || 'Faculty Member'}
+                  <strong>{roleLabel}:</strong> {displayName.trim() || `${roleLabel} Member`}
                 </span>
               </div>
             </div>
