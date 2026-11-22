@@ -15,6 +15,10 @@ export default function App() {
   const pollId = params.get('poll');
 
   useEffect(() => {
+    document.title = 'SaySphere — Live Classroom Polls';
+  }, []);
+
+  useEffect(() => {
     if (pollId) {
       setLoading(false);
       return;
