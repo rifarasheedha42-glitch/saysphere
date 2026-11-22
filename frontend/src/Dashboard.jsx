@@ -67,6 +67,8 @@ const hexToRgb = (hex) => {
 };
 
 const createEmptyQuestion = () => ({
+  id: null,
+  feedback_id: null,
   question_text: '',
   question_type: 'mcq',
   options: ['', ''],
@@ -828,7 +830,7 @@ export default function Dashboard({ user }) {
     return stripped || 'Feedback (Optional)';
   };
 
-  // Expand builder question rows + linked feedback rows for Supabase persistence
+  // Expand builder question rows + linked feedback rows (preserving existing IDs when editing)
   const expandQuestionsForDatabase = (pollId, rawQuestions) => {
     const rows = [];
     rawQuestions.forEach((q) => {
@@ -839,6 +841,7 @@ export default function Dashboard({ user }) {
           : q.question_text.trim();
 
       rows.push({
+        id: q.id || null,
         poll_id: pollId,
         question_text: baseText,
         question_type: q.question_type,
@@ -849,6 +852,7 @@ export default function Dashboard({ user }) {
 
       if (q.question_type !== 'text' && q.allow_feedback) {
         rows.push({
+          id: q.feedback_id || null,
           poll_id: pollId,
           question_text: `${FEEDBACK_PREFIX} ${cleanFeedbackLabel(q.feedback_prompt)}`,
           question_type: 'text',
@@ -860,7 +864,7 @@ export default function Dashboard({ user }) {
     return rows;
   };
 
-  // Reconstruct main question cards + attached feedback when editing an existing poll
+  // Reconstruct main question cards + attached feedback (preserving BOTH main id and feedback_id)
   const hydrateQuestionsFromDatabase = (qData) => {
     if (!qData || qData.length === 0) {
       return [createEmptyQuestion()];
@@ -876,6 +880,7 @@ export default function Dashboard({ user }) {
       if (isLinkedFeedback) {
         if (hydrated.length > 0) {
           hydrated[hydrated.length - 1].allow_feedback = true;
+          hydrated[hydrated.length - 1].feedback_id = row.id;
           hydrated[hydrated.length - 1].feedback_prompt = cleanFeedbackLabel(row.question_text);
         }
         continue;
@@ -883,6 +888,7 @@ export default function Dashboard({ user }) {
 
       hydrated.push({
         id: row.id,
+        feedback_id: null,
         question_text: cleanFeedbackLabel(row.question_text),
         question_type: row.question_type,
         options:
@@ -980,13 +986,14 @@ export default function Dashboard({ user }) {
     setSidebarOpen(false);
   }
 
-  // SAVE (CREATE OR UPDATE) POLL
+  // SAVE (CREATE OR UPDATE) POLL — updates existing questions in place to preserve responses
   async function handleSavePoll(e) {
     e.preventDefault();
     if (!title.trim()) return;
     setSaving(true);
 
     if (editingPollId) {
+      // 1. Update poll details
       const { error: pollError } = await supabase
         .from('polls')
         .update({
@@ -1003,14 +1010,72 @@ export default function Dashboard({ user }) {
         return;
       }
 
-      await supabase.from('questions').delete().eq('poll_id', editingPollId);
-      const expandedRows = expandQuestionsForDatabase(editingPollId, questions);
-      const { error: qError } = await supabase.from('questions').insert(expandedRows);
+      // 2. Fetch existing question IDs currently in Supabase
+      const { data: existingRows, error: fetchError } = await supabase
+        .from('questions')
+        .select('id')
+        .eq('poll_id', editingPollId);
 
-      if (qError) {
-        alert('Poll updated, but failed to save questions: ' + qError.message);
+      if (fetchError) {
+        alert('Failed to load existing questions: ' + fetchError.message);
         setSaving(false);
         return;
+      }
+
+      const existingIds = new Set((existingRows || []).map((row) => row.id));
+      const expandedRows = expandQuestionsForDatabase(editingPollId, questions);
+
+      const keptIds = new Set();
+      const toUpdate = [];
+      const toInsert = [];
+
+      expandedRows.forEach((row) => {
+        const { id, ...fields } = row;
+        if (id && existingIds.has(id)) {
+          keptIds.add(id);
+          toUpdate.push({ id, fields });
+        } else {
+          toInsert.push(fields);
+        }
+      });
+
+      // 3. Delete ONLY questions that were actually removed by the user
+      const idsToDelete = [...existingIds].filter((id) => !keptIds.has(id));
+      if (idsToDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('questions')
+          .delete()
+          .in('id', idsToDelete);
+
+        if (deleteError) {
+          alert('Failed to remove deleted questions: ' + deleteError.message);
+          setSaving(false);
+          return;
+        }
+      }
+
+      // 4. Update existing questions in place (keeps original UUIDs intact)
+      for (const item of toUpdate) {
+        const { error: updateError } = await supabase
+          .from('questions')
+          .update(item.fields)
+          .eq('id', item.id);
+
+        if (updateError) {
+          alert('Failed to update question: ' + updateError.message);
+          setSaving(false);
+          return;
+        }
+      }
+
+      // 5. Insert only newly added questions
+      if (toInsert.length > 0) {
+        const { error: insertError } = await supabase.from('questions').insert(toInsert);
+        if (insertError) {
+          alert('Failed to add new questions: ' + insertError.message);
+          setSaving(false);
+          return;
+        }
       }
 
       resetForm();
@@ -1020,6 +1085,7 @@ export default function Dashboard({ user }) {
       return;
     }
 
+    // CREATE NEW POLL
     const { data: newPoll, error: pollError } = await supabase
       .from('polls')
       .insert([
@@ -1040,7 +1106,10 @@ export default function Dashboard({ user }) {
       return;
     }
 
-    const formattedQuestions = expandQuestionsForDatabase(newPoll.id, questions);
+    // Strip null id before inserting new poll questions
+    const formattedQuestions = expandQuestionsForDatabase(newPoll.id, questions).map(
+      ({ id, ...fields }) => fields
+    );
     const { error: qError } = await supabase.from('questions').insert(formattedQuestions);
 
     if (qError) {
@@ -2148,7 +2217,7 @@ export default function Dashboard({ user }) {
                   <p className={`text-sm font-medium mt-1 ${bodySubtext}`}>
                     Created {formatCreatedDate(selectedPoll.created_at)} • Total Anonymous Responses:{' '}
                     <span className="text-indigo-600 font-bold text-base">{responses.length}</span>{' '}
-                    • Questions:{' '}
+                    - Questions:{' '}
                     <span className="font-semibold">
                       {
                         pollQuestions.filter(
@@ -2878,7 +2947,7 @@ export default function Dashboard({ user }) {
                       type="text"
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="e.g., Rifa"
+                      placeholder="e.g., Faculty Name"
                       className={`w-full border rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:border-indigo-500 ${fieldBg}`}
                     />
                   </div>
