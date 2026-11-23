@@ -77,7 +77,8 @@ const createEmptyQuestion = () => ({
 });
 
 export default function Dashboard({ user, role = 'faculty' }) {
-  const roleLabel = role === 'student' ? 'Student' : 'Faculty';
+  const isStudent = role === 'student';
+  const roleLabel = isStudent ? 'Student' : 'Faculty';
 
   const [polls, setPolls] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +93,14 @@ export default function Dashboard({ user, role = 'faculty' }) {
     return saved === 'dark' ? 'dark' : 'light';
   });
   const isLight = theme === 'light';
+
+  const roleBadgeClass = isStudent
+    ? isLight
+      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+      : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+    : isLight
+    ? 'bg-indigo-100 text-indigo-800 border-indigo-300'
+    : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40';
 
   useEffect(() => {
     localStorage.setItem('saysphere_theme', theme);
@@ -1431,7 +1440,7 @@ export default function Dashboard({ user, role = 'faculty' }) {
             </nav>
           </div>
 
-          {/* Bottom Account + Logout */}
+          {/* Bottom Account + Permanent Role Badge + Logout */}
           <div
             className={`p-4 border-t space-y-3 ${
               isLight ? 'border-slate-200' : 'border-slate-800/80'
@@ -1445,9 +1454,16 @@ export default function Dashboard({ user, role = 'faculty' }) {
                   : 'bg-slate-900/70 hover:bg-slate-900 border-slate-800/80'
               }`}
             >
-              <p className={`text-xs font-bold uppercase tracking-wider ${coloredLabel}`}>
-                {displayName.trim() || `${roleLabel} Account`}
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className={`text-xs font-bold uppercase tracking-wider truncate ${coloredLabel}`}>
+                  {displayName.trim() || `${roleLabel} Account`}
+                </p>
+                <span
+                  className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border shrink-0 ${roleBadgeClass}`}
+                >
+                  {roleLabel}
+                </span>
+              </div>
               <p className={`text-xs font-medium truncate mt-1 ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
                 {user?.email || ''}
               </p>
@@ -1542,9 +1558,16 @@ export default function Dashboard({ user, role = 'faculty' }) {
           {view === 'list' && (
             <div className="space-y-6">
               <div>
-                <h2 className={`text-2xl sm:text-3xl font-bold tracking-tight ${headingText}`}>
-                  {displayName.trim() ? `Welcome, ${displayName.trim()}` : `${roleLabel} Dashboard`}
-                </h2>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h2 className={`text-2xl sm:text-3xl font-bold tracking-tight ${headingText}`}>
+                    {displayName.trim() ? `Welcome, ${displayName.trim()}` : `${roleLabel} Dashboard`}
+                  </h2>
+                  <span
+                    className={`text-xs font-extrabold uppercase tracking-wider px-3 py-1 rounded-full border ${roleBadgeClass}`}
+                  >
+                    {roleLabel}
+                  </span>
+                </div>
                 <p className={`text-sm font-medium mt-1 ${bodySubtext}`}>
                   Create anonymous classroom polls, project QR codes, and track live responses.
                 </p>
