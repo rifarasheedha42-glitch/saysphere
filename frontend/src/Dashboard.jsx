@@ -34,7 +34,6 @@ import {
   Maximize2,
   Minimize2,
   Settings,
-  KeyRound,
   Save,
   Sun,
   Moon,
@@ -113,7 +112,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
   const [defaultCategory, setDefaultCategory] = useState(meta.default_category || 'Poll');
   const [defaultStatus, setDefaultStatus] = useState(meta.default_status || 'Active');
   const [savingSettings, setSavingSettings] = useState(false);
-  const [sendingReset, setSendingReset] = useState(false);
   const [settingsNotice, setSettingsNotice] = useState({ type: '', text: '' });
 
   useEffect(() => {
@@ -672,31 +670,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
       setTimeout(() => setSettingsNotice({ type: '', text: '' }), 3000);
     }
     setSavingSettings(false);
-  }
-
-  // Working Password Reset via Supabase Auth
-  async function handleSendPasswordReset() {
-    setSettingsNotice({ type: '', text: '' });
-    const targetEmail = (user?.email || '').trim();
-    if (!targetEmail) {
-      setSettingsNotice({ type: 'error', text: 'No email address found for this account.' });
-      return;
-    }
-
-    setSendingReset(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(targetEmail, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-
-    if (error) {
-      setSettingsNotice({ type: 'error', text: error.message });
-    } else {
-      setSettingsNotice({
-        type: 'success',
-        text: `Password reset email sent to ${targetEmail}. Check your inbox (and spam folder).`,
-      });
-    }
-    setSendingReset(false);
   }
 
   const resetForm = () => {
@@ -1882,7 +1855,7 @@ export default function Dashboard({ user, role = 'faculty' }) {
                   onSubmit={handleSavePoll}
                   className={showStudentPreview ? 'xl:col-span-7 space-y-6' : 'space-y-6'}
                 >
-                  <div className={`border rounded-2xl p-6 space-y-4 ${cardBg}`}>
+                  <div className={`border rounded-2xl p-6 ${cardBg}`}>
                     <div>
                       <label className={`block mb-1.5 ${coloredLabel}`}>Poll Title *</label>
                       <input
@@ -1893,34 +1866,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
                         placeholder="e.g., SSG Class & Hackathon Poll"
                         className={`w-full border rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:border-indigo-500 ${fieldBg}`}
                       />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className={`block mb-1.5 ${coloredLabel}`}>
-                          Description (optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={description}
-                          onChange={(e) => setDescription(e.target.value)}
-                          placeholder="Short instructions for students"
-                          className={`w-full border rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:border-indigo-500 ${fieldBg}`}
-                        />
-                      </div>
-
-                      <div>
-                        <label className={`block mb-1.5 ${coloredLabel}`}>Category</label>
-                        <select
-                          value={type}
-                          onChange={(e) => setType(e.target.value)}
-                          className={`w-full border rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:border-indigo-500 ${fieldBg}`}
-                        >
-                          <option value="Poll">Quick Poll</option>
-                          <option value="Feedback">Class Feedback</option>
-                          <option value="Survey">Survey</option>
-                        </select>
-                      </div>
                     </div>
                   </div>
 
@@ -3040,30 +2985,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
                   <span>{savingSettings ? 'Saving...' : 'Save Settings'}</span>
                 </button>
               </form>
-
-              <div
-                className={`border rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${cardBg}`}
-              >
-                <div>
-                  <h3 className={`text-base font-bold ${headingText}`}>Security</h3>
-                  <p className={`text-sm font-medium mt-0.5 ${bodySubtext}`}>
-                    Send a password reset email to {user?.email || 'your verified college address'}.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  disabled={sendingReset}
-                  onClick={handleSendPasswordReset}
-                  className={`inline-flex items-center justify-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-xl border disabled:opacity-50 transition cursor-pointer shrink-0 ${
-                    isLight
-                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200'
-                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
-                  }`}
-                >
-                  <KeyRound className="w-4 h-4" />
-                  <span>{sendingReset ? 'Sending...' : 'Reset Password'}</span>
-                </button>
-              </div>
             </div>
           )}
         </main>
