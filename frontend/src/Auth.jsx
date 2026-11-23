@@ -51,6 +51,10 @@ export default function Auth() {
       provider: 'google',
       options: {
         redirectTo: window.location.origin,
+        queryParams: {
+          hd: ALLOWED_DOMAIN,
+          prompt: 'select_account',
+        },
       },
     });
 
@@ -69,7 +73,7 @@ export default function Auth() {
     const cleanEmail = email.trim().toLowerCase();
 
     if (mode === 'signup' && !cleanName) {
-      setErrorMsg('Please enter your name for your faculty dashboard.');
+      setErrorMsg('Please enter your name for your dashboard.');
       return;
     }
 
@@ -287,7 +291,7 @@ export default function Auth() {
               </h2>
 
               <p className={`text-base max-w-lg leading-relaxed font-medium ${subtextColor}`}>
-                Share a QR code in class and collect honest, anonymous student responses in seconds.
+                Share a QR code in class and collect honest, anonymous responses in seconds.
               </p>
 
               <div className="flex flex-wrap gap-3 pt-1">
@@ -317,11 +321,11 @@ export default function Auth() {
             >
               <div>
                 <h2 className={`text-2xl font-bold tracking-tight ${headingColor}`}>
-                  {mode === 'login' ? 'Faculty Sign In' : 'Create Faculty Account'}
+                  {mode === 'login' ? 'Sign In' : 'Create Account'}
                 </h2>
                 <p className={`text-xs sm:text-sm mt-1 ${subtextColor}`}>
                   {mode === 'login'
-                    ? 'Sign in to manage your polls and view results.'
+                    ? 'Sign in with your @bitsathy.ac.in account (Faculty & Students).'
                     : `Sign up with your @${ALLOWED_DOMAIN} email.`}
                 </p>
               </div>
@@ -507,7 +511,7 @@ export default function Auth() {
                       ? 'Please wait...'
                       : mode === 'login'
                       ? 'Sign In to Dashboard'
-                      : 'Create Faculty Account'}
+                      : 'Create Account'}
                   </span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
@@ -518,7 +522,7 @@ export default function Auth() {
 
         {/* FIXED SINGLE-SCREEN FOOTER */}
         <footer className={`text-xs sm:text-sm font-semibold shrink-0 ${subtextColor}`}>
-          @{ALLOWED_DOMAIN} faculty access
+          @{ALLOWED_DOMAIN} faculty &amp; student access
         </footer>
       </div>
     </div>
