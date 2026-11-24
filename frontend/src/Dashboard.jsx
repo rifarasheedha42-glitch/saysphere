@@ -145,7 +145,7 @@ export default function Dashboard({ user, role = 'faculty' }) {
 
   // QR Modal & Card Quick-Copy state
   const [qrPoll, setQrPoll] = useState(null);
-  const [copied, setCopied] = useState(false);
+  const [qrFullscreen, setQrFullscreen] = useState(false);
   const [copiedCardId, setCopiedCardId] = useState(null);
 
   // Single Poll Results & PDF Report state
@@ -720,12 +720,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
   };
 
   const getPollUrl = (pollId) => `${window.location.origin}/?poll=${pollId}`;
-
-  const copyLink = (pollId) => {
-    navigator.clipboard.writeText(getPollUrl(pollId));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   const copyCardLink = (pollId) => {
     navigator.clipboard.writeText(getPollUrl(pollId));
@@ -3204,44 +3198,76 @@ export default function Dashboard({ user, role = 'faculty' }) {
         </div>
       )}
 
-      {/* QR CODE MODAL (Projector Friendly) */}
+      {/* QR CODE MODAL (Projector Friendly + Full Screen Toggle) */}
       {qrPoll && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div
+          className={`fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 ${
+            qrFullscreen ? 'p-0' : 'p-4'
+          }`}
+        >
           <div
-            className={`border rounded-3xl max-w-md w-full p-8 text-center relative shadow-2xl ${
-              isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-white'
+            className={`border text-center relative shadow-2xl transition-all duration-200 flex flex-col items-center justify-center ${
+              isLight
+                ? 'bg-white border-slate-200 text-slate-900'
+                : 'bg-slate-900 border-slate-800 text-white'
+            } ${
+              qrFullscreen
+                ? 'w-screen h-screen rounded-none p-8 sm:p-12'
+                : 'max-w-lg w-full rounded-3xl p-8 sm:p-10'
             }`}
           >
-            <button
-              onClick={() => setQrPoll(null)}
-              className={`absolute top-4 right-4 p-2 cursor-pointer ${bodySubtext}`}
-            >
-              <X className="w-5 h-5" />
-            </button>
+            {/* Top-Right Controls: Fullscreen Toggle + Close */}
+            <div className="absolute top-4 right-4 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setQrFullscreen((prev) => !prev)}
+                title={qrFullscreen ? 'Exit Full Screen' : 'Full Screen (Projector Mode)'}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                  qrFullscreen
+                    ? 'bg-purple-600 text-white border-purple-500'
+                    : isLight
+                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                }`}
+              >
+                {qrFullscreen ? (
+                  <>
+                    <Minimize2 className="w-4 h-4" />
+                    <span>Exit Full Screen</span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="w-4 h-4" />
+                    <span>Full Screen</span>
+                  </>
+                )}
+              </button>
 
-            <h3 className="text-xl font-bold mb-1">{qrPoll.title}</h3>
-            <p className={`text-xs font-medium mb-6 ${bodySubtext}`}>
+              <button
+                type="button"
+                onClick={() => {
+                  setQrPoll(null);
+                  setQrFullscreen(false);
+                }}
+                className={`p-2 rounded-xl cursor-pointer ${bodySubtext}`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <h3 className={`font-bold mb-1 ${qrFullscreen ? 'text-3xl sm:text-4xl' : 'text-2xl'}`}>
+              {qrPoll.title}
+            </h3>
+            <p className={`font-medium mb-6 ${bodySubtext} ${qrFullscreen ? 'text-base' : 'text-xs'}`}>
               Scan this QR code to submit your anonymous response
             </p>
 
-            <div className="bg-white p-5 rounded-2xl inline-block mb-6 shadow-lg">
-              <QRCodeSVG value={getPollUrl(qrPoll.id)} size={240} />
-            </div>
-
-            <div className={`flex items-center gap-2 border rounded-xl p-2 ${fieldBg}`}>
-              <input
-                type="text"
-                readOnly
+            <div className={`bg-white rounded-3xl inline-block shadow-lg ${qrFullscreen ? 'p-8' : 'p-6'}`}>
+              <QRCodeSVG
                 value={getPollUrl(qrPoll.id)}
-                className="flex-1 bg-transparent text-xs px-2 focus:outline-none"
+                size={qrFullscreen ? 420 : 300}
+                className="max-w-[75vw] max-h-[65vh] h-auto w-auto"
               />
-              <button
-                onClick={() => copyLink(qrPoll.id)}
-                className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition cursor-pointer"
-              >
-                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copied ? 'Copied' : 'Copy'}</span>
-              </button>
             </div>
           </div>
         </div>
