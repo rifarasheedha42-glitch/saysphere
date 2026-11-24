@@ -126,7 +126,7 @@ export default function Dashboard({ user, role = 'faculty' }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'Active' | 'Closed'
 
-  // Create / Edit Poll state (preserved across navigation until saved or explicitly cleared)
+  // Create / Edit Poll state
   const [editingPollId, setEditingPollId] = useState(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -140,7 +140,7 @@ export default function Dashboard({ user, role = 'faculty' }) {
   const [deletingPoll, setDeletingPoll] = useState(false);
 
   // In-page Reset Responses Confirmation Modal state
-  const [pollToReset, setPollToReset] = useState(null); // { poll, count }
+  const [pollToReset, setPollToReset] = useState(null);
   const [resettingPoll, setResettingPoll] = useState(false);
 
   // QR Modal & Card Quick-Copy state
@@ -155,7 +155,7 @@ export default function Dashboard({ user, role = 'faculty' }) {
   const [loadingResults, setLoadingResults] = useState(false);
   const [showPdfReport, setShowPdfReport] = useState(false);
 
-  // Global Analytics & Live Session state (across all polls)
+  // Global Analytics & Live Session state
   const [allQuestionsMap, setAllQuestionsMap] = useState({});
   const [allResponsesMap, setAllResponsesMap] = useState({});
   const [loadingGlobal, setLoadingGlobal] = useState(false);
@@ -278,7 +278,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     });
   };
 
-  // Extract feedback notes linked right after a question (or standalone text questions)
   const extractQuestionFeedbackNotes = (qIndex, questionsArr, sourceResponses) => {
     const currentQ = questionsArr[qIndex];
     const notes = [];
@@ -309,7 +308,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     return notes;
   };
 
-  // Build concise summary + readable feedback entries for a question
   const buildQuestionSummary = (q, qIndex, questionsArr = pollQuestions, sourceResponses = responses) => {
     const qAnswers = sourceResponses
       .map((r) => r.answers?.[q.id])
@@ -382,7 +380,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     };
   };
 
-  // Build SVG conic-gradient style for clean Pie/Donut charts
   const buildPieGradient = (breakdown) => {
     const totalVotes = breakdown.reduce((sum, item) => sum + item.votes, 0);
     if (totalVotes === 0) return 'conic-gradient(#CBD5E1 0deg 360deg)';
@@ -398,7 +395,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     return `conic-gradient(${segments.join(', ')})`;
   };
 
-  // Direct downloadable A4 Poll Results PDF with visual colored charts + overall analysis
   const handleDownloadPdf = () => {
     if (!selectedPoll) return;
 
@@ -647,7 +643,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     doc.save(`${safeFileName || 'saysphere-results'}-results.pdf`);
   };
 
-  // Save Settings to Supabase user_metadata
   async function handleSaveSettings(e) {
     e.preventDefault();
     setSavingSettings(true);
@@ -680,7 +675,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     setQuestions([createEmptyQuestion()]);
   };
 
-  // Universal navigation helpers (never wipe unsaved drafts)
   const openListView = () => {
     setProjectorMode(false);
     setShowPdfReport(false);
@@ -739,7 +733,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     setTimeout(() => setCopiedCardId(null), 2000);
   };
 
-  // Question builder & inline feedback helpers
   const addQuestion = () => {
     setQuestions([...questions, createEmptyQuestion()]);
   };
@@ -810,7 +803,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     setQuestions(updated);
   };
 
-  // Clean feedback label without any internal prefix
   const cleanFeedbackLabel = (rawText) => {
     const stripped = String(rawText || '')
       .replaceAll(FEEDBACK_PREFIX, '')
@@ -818,7 +810,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     return stripped || 'Feedback (Optional)';
   };
 
-  // Expand builder question rows + linked feedback rows (preserving existing IDs when editing)
   const expandQuestionsForDatabase = (pollId, rawQuestions) => {
     const rows = [];
     rawQuestions.forEach((q) => {
@@ -852,7 +843,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     return rows;
   };
 
-  // Reconstruct main question cards + attached feedback (preserving BOTH main id and feedback_id)
   const hydrateQuestionsFromDatabase = (qData) => {
     if (!qData || qData.length === 0) {
       return [createEmptyQuestion()];
@@ -893,7 +883,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     return hydrated.length > 0 ? hydrated : [createEmptyQuestion()];
   };
 
-  // COPY / DUPLICATE POLL (strips [LINKED_FEEDBACK] cleanly)
   async function handleDuplicatePoll(poll) {
     setLoading(true);
     const { data: qData, error: fetchError } = await supabase
@@ -950,7 +939,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     await fetchPolls();
   }
 
-  // LOAD POLL INTO EDIT MODE
   async function startEditPoll(poll) {
     const { data: qData, error } = await supabase
       .from('questions')
@@ -974,14 +962,12 @@ export default function Dashboard({ user, role = 'faculty' }) {
     setSidebarOpen(false);
   }
 
-  // SAVE (CREATE OR UPDATE) POLL — updates existing questions in place to preserve responses
   async function handleSavePoll(e) {
     e.preventDefault();
     if (!title.trim()) return;
     setSaving(true);
 
     if (editingPollId) {
-      // 1. Update poll details
       const { error: pollError } = await supabase
         .from('polls')
         .update({
@@ -998,7 +984,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
         return;
       }
 
-      // 2. Fetch existing question IDs currently in Supabase
       const { data: existingRows, error: fetchError } = await supabase
         .from('questions')
         .select('id')
@@ -1027,7 +1012,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
         }
       });
 
-      // 3. Delete ONLY questions that were actually removed by the user
       const idsToDelete = [...existingIds].filter((id) => !keptIds.has(id));
       if (idsToDelete.length > 0) {
         const { error: deleteError } = await supabase
@@ -1042,7 +1026,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
         }
       }
 
-      // 4. Update existing questions in place (keeps original UUIDs intact)
       for (const item of toUpdate) {
         const { error: updateError } = await supabase
           .from('questions')
@@ -1056,7 +1039,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
         }
       }
 
-      // 5. Insert only newly added questions
       if (toInsert.length > 0) {
         const { error: insertError } = await supabase.from('questions').insert(toInsert);
         if (insertError) {
@@ -1073,7 +1055,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
       return;
     }
 
-    // CREATE NEW POLL
     const { data: newPoll, error: pollError } = await supabase
       .from('polls')
       .insert([
@@ -1094,7 +1075,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
       return;
     }
 
-    // Strip null id before inserting new poll questions
     const formattedQuestions = expandQuestionsForDatabase(newPoll.id, questions).map(
       ({ id, ...fields }) => fields
     );
@@ -1106,20 +1086,17 @@ export default function Dashboard({ user, role = 'faculty' }) {
       resetForm();
       await fetchPolls();
       setView('list');
-      setQrPoll(newPoll);
     }
 
     setSaving(false);
   }
 
-  // OPEN IN-PAGE RESET MODAL
   function handleResetResponses(poll, customCount) {
     const countToShow =
       typeof customCount === 'number' ? customCount : responses.length;
     setPollToReset({ poll, count: countToShow });
   }
 
-  // CONFIRM & RESET ALL RESPONSES FOR A POLL
   async function confirmResetResponses() {
     if (!pollToReset) return;
     setResettingPoll(true);
@@ -1156,7 +1133,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     }
   }
 
-  // CONFIRM & DELETE POLL VIA IN-PAGE MODAL
   async function confirmDeletePoll() {
     if (!pollToDelete) return;
     setDeletingPoll(true);
@@ -1187,7 +1163,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     await supabase.auth.signOut();
   }
 
-  // Stats & Filtered Polls
   const activePolls = polls.filter((p) => p.status === 'Active');
   const activeCount = activePolls.length;
   const closedCount = polls.filter((p) => p.status !== 'Active').length;
@@ -1209,7 +1184,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     return matchesStatus && matchesSearch;
   });
 
-  // Purposeful Sidebar Menu (Overview, Charts & Analysis, Live Session, Settings)
   const navItems = [
     {
       id: 'overview',
@@ -1245,7 +1219,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     },
   ];
 
-  // Theme & high-legibility label tokens
   const shellBg = isLight ? 'bg-slate-50 text-slate-900' : 'bg-[#0B0F19] text-slate-100';
   const sidebarBg = isLight
     ? 'bg-white border-slate-200 text-slate-800'
@@ -1262,7 +1235,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     ? 'text-indigo-700 font-semibold text-sm'
     : 'text-indigo-300 font-semibold text-sm';
 
-  // Reusable Universal Back Bar for every page (desktop + mobile)
   const UniversalBackButton = ({ label = 'Back to Overview' }) => (
     <div className="mb-5">
       <button
@@ -1280,7 +1252,6 @@ export default function Dashboard({ user, role = 'faculty' }) {
     </div>
   );
 
-  // Selected poll data for the Charts & Analysis view
   const activeAnalyticsPoll =
     polls.find((p) => p.id === analyticsPollId) || polls[0] || null;
   const activeAnalyticsQuestions = activeAnalyticsPoll
@@ -1312,7 +1283,7 @@ export default function Dashboard({ user, role = 'faculty' }) {
           }`}
         >
           <div>
-            {/* Brand Header + Dark/Light Toggle (Full Unclipped Subtitle) */}
+            {/* Brand Header + Dark/Light Toggle */}
             <div
               className={`px-3.5 py-4 border-b flex items-center justify-between gap-1.5 ${
                 isLight ? 'border-slate-200' : 'border-slate-800/80'
@@ -1791,7 +1762,7 @@ export default function Dashboard({ user, role = 'faculty' }) {
             </div>
           )}
 
-          {/* VIEW 2: POLL STUDIO + OPTIONAL TOGGLEABLE STUDENT PREVIEW */}
+          {/* VIEW 2: POLL STUDIO + FULL-SCREEN STUDENT PREVIEW */}
           {view === 'create' && (
             <div>
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1838,23 +1809,14 @@ export default function Dashboard({ user, role = 'faculty' }) {
                 </h2>
                 <p className={`text-sm font-medium mt-0.5 ${bodySubtext}`}>
                   {editingPollId
-                    ? 'Update your poll details or questions below. Click "Preview Student View" anytime to inspect the mobile layout.'
+                    ? 'Update your poll details or questions below. Click "Preview Student View" anytime to inspect the full-screen student layout.'
                     : 'Build your questions below. Click "+ Add Feedback" to attach an optional feedback box to a question.'}
                 </p>
               </div>
 
-              <div
-                className={
-                  showStudentPreview
-                    ? 'grid grid-cols-1 xl:grid-cols-12 gap-7 items-start'
-                    : 'w-full'
-                }
-              >
-                {/* LEFT / MAIN COLUMN: BUILDER FORM */}
-                <form
-                  onSubmit={handleSavePoll}
-                  className={showStudentPreview ? 'xl:col-span-7 space-y-6' : 'space-y-6'}
-                >
+              <div className="w-full">
+                {/* BUILDER FORM */}
+                <form onSubmit={handleSavePoll} className="space-y-6">
                   <div className={`border rounded-2xl p-6 ${cardBg}`}>
                     <div>
                       <label className={`block mb-1.5 ${coloredLabel}`}>Poll Title *</label>
@@ -1915,9 +1877,10 @@ export default function Dashboard({ user, role = 'faculty' }) {
                               <button
                                 type="button"
                                 onClick={() => removeQuestion(qIndex)}
-                                className="ml-1 text-xs font-semibold text-red-600 hover:text-red-500 cursor-pointer"
+                                title="Remove question"
+                                className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 transition cursor-pointer"
                               >
-                                Remove
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             )}
                           </div>
@@ -2057,113 +2020,114 @@ export default function Dashboard({ user, role = 'faculty' }) {
                       ? 'Saving...'
                       : editingPollId
                       ? 'Save Changes'
-                      : 'Create Poll & Generate QR Code'}
+                      : 'Create Poll'}
                   </button>
                 </form>
 
-                {/* OPTIONAL RIGHT COLUMN: LIVE STUDENT PHONE PREVIEW (SHOWN ONLY WHEN TOGGLED ON) */}
+                {/* FULL-SCREEN STUDENT PREVIEW OVERLAY */}
                 {showStudentPreview && (
-                  <div className="xl:col-span-5 xl:sticky xl:top-6">
-                    <div className="flex items-center justify-between mb-3 px-1">
-                      <div className="flex items-center gap-2 text-xs font-bold text-indigo-600">
-                        <Smartphone className="w-4 h-4" />
-                        <span>Student Mobile Preview</span>
+                  <div className="fixed inset-0 z-50 bg-[#0B0F19] text-slate-100 overflow-y-auto flex flex-col">
+                    <div className="sticky top-0 z-10 bg-[#0B0F19]/95 backdrop-blur-md border-b border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 text-sm font-bold text-indigo-400">
+                          <Smartphone className="w-4 h-4" />
+                          <span>Full-Screen Student Preview</span>
+                        </div>
+                        <span className="hidden sm:inline-block text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                          Preview Only (Non-Clickable)
+                        </span>
                       </div>
-                      <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30">
-                        Preview Only (Non-Clickable)
-                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowStudentPreview(false)}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                        <span>Close Preview</span>
+                      </button>
                     </div>
 
-                    <div className="max-w-[390px] mx-auto bg-[#070A12] border-[3px] border-slate-800 rounded-[2.5rem] p-3 shadow-2xl select-none pointer-events-none">
-                      <div className="w-24 h-4 bg-slate-900 rounded-full mx-auto mb-3 border border-slate-800/80" />
-                      <div className="bg-[#0B0F19] text-slate-100 rounded-[1.85rem] border border-slate-800/80 p-4 max-h-[640px] overflow-y-auto space-y-3.5">
-                        <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-800/70">
-                          <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                            <Logo className="w-5 h-5 shrink-0" />
-                            SaySphere
-                          </span>
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-                            <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                            Anonymous
-                          </span>
-                        </div>
+                    <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-5 select-none pointer-events-none">
+                      <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-800/80">
+                        <span className="text-base font-bold text-white flex items-center gap-2">
+                          <Logo className="w-7 h-7 shrink-0" />
+                          SaySphere
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                          100% Anonymous
+                        </span>
+                      </div>
 
-                        <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-3.5">
-                          <span className="inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 mb-1.5">
-                            {type || 'Poll'}
-                          </span>
-                          <h3 className="text-sm font-bold text-white leading-snug">
-                            {title.trim() || 'Your Poll Title Appears Here'}
-                          </h3>
-                          {description.trim() && (
-                            <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                              {description.trim()}
+                      <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-6">
+                        <span className="inline-block text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 mb-2">
+                          {type || 'Poll'}
+                        </span>
+                        <h3 className="text-xl sm:text-2xl font-bold text-white leading-snug">
+                          {title.trim() || 'Your Poll Title Appears Here'}
+                        </h3>
+                      </div>
+
+                      {questions.map((q, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-6 space-y-4"
+                        >
+                          <div className="flex items-start gap-3">
+                            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                              {idx + 1}
+                            </span>
+                            <p className="text-base font-semibold text-white leading-snug">
+                              {cleanFeedbackLabel(q.question_text) || `Question ${idx + 1} text...`}
                             </p>
+                          </div>
+
+                          {q.question_type === 'mcq' && (
+                            <div className="grid grid-cols-1 gap-2.5 pt-1">
+                              {(q.options || []).map((opt, oIdx) => (
+                                <div
+                                  key={oIdx}
+                                  className="px-4 py-3 rounded-xl bg-[#0B0F19] border border-slate-800 text-sm text-slate-200 flex items-center gap-3"
+                                >
+                                  <span className="w-4 h-4 rounded-full border border-slate-600 shrink-0" />
+                                  <span>{opt.trim() || `Option ${oIdx + 1}`}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {q.question_type === 'rating' && (
+                            <div className="grid grid-cols-5 gap-2 pt-1">
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <div
+                                  key={n}
+                                  className="py-3 rounded-xl bg-[#0B0F19] border border-slate-800 flex flex-col items-center gap-1 text-slate-300"
+                                >
+                                  <Star className="w-5 h-5" />
+                                  <span className="text-xs font-semibold">{n}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {(q.question_type === 'text' || q.allow_feedback) && (
+                            <div className="pt-2 border-t border-slate-800/70">
+                              <p className="text-xs font-semibold text-emerald-300 mb-1.5">
+                                {q.question_type === 'text'
+                                  ? 'Feedback'
+                                  : cleanFeedbackLabel(q.feedback_prompt)}
+                              </p>
+                              <div className="w-full h-20 rounded-xl bg-[#0B0F19] border border-slate-800 p-3 text-sm text-slate-400">
+                                Student types feedback here...
+                              </div>
+                            </div>
                           )}
                         </div>
+                      ))}
 
-                        {questions.map((q, idx) => (
-                          <div
-                            key={idx}
-                            className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-3.5 space-y-2.5"
-                          >
-                            <div className="flex items-start gap-2">
-                              <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
-                                {idx + 1}
-                              </span>
-                              <p className="text-xs font-semibold text-white leading-snug">
-                                {cleanFeedbackLabel(q.question_text) || `Question ${idx + 1} text...`}
-                              </p>
-                            </div>
-
-                            {q.question_type === 'mcq' && (
-                              <div className="grid grid-cols-1 gap-1.5 pt-0.5">
-                                {(q.options || []).map((opt, oIdx) => (
-                                  <div
-                                    key={oIdx}
-                                    className="px-3 py-2 rounded-xl bg-[#0B0F19] border border-slate-800 text-xs text-slate-200 flex items-center gap-2"
-                                  >
-                                    <span className="w-3.5 h-3.5 rounded-full border border-slate-600 shrink-0" />
-                                    <span className="truncate">
-                                      {opt.trim() || `Option ${oIdx + 1}`}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {q.question_type === 'rating' && (
-                              <div className="grid grid-cols-5 gap-1 pt-0.5">
-                                {[1, 2, 3, 4, 5].map((n) => (
-                                  <div
-                                    key={n}
-                                    className="py-2 rounded-xl bg-[#0B0F19] border border-slate-800 flex flex-col items-center gap-0.5 text-slate-300"
-                                  >
-                                    <Star className="w-3.5 h-3.5" />
-                                    <span className="text-[10px] font-semibold">{n}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {(q.question_type === 'text' || q.allow_feedback) && (
-                              <div className="pt-1 border-t border-slate-800/70">
-                                <p className="text-[10px] font-semibold text-emerald-300 mb-1">
-                                  {q.question_type === 'text'
-                                    ? 'Feedback'
-                                    : cleanFeedbackLabel(q.feedback_prompt)}
-                                </p>
-                                <div className="w-full h-12 rounded-xl bg-[#0B0F19] border border-slate-800 p-2 text-xs text-slate-400">
-                                  Student types feedback here...
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-
-                        <div className="w-full py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-center text-xs font-semibold text-slate-300">
-                          Submit Response (Student Button)
-                        </div>
+                      <div className="w-full py-3.5 rounded-xl bg-slate-800 border border-slate-700 text-center text-sm font-semibold text-slate-300">
+                        Submit Response (Student Button)
                       </div>
                     </div>
                   </div>
@@ -2748,7 +2712,7 @@ export default function Dashboard({ user, role = 'faculty' }) {
             </div>
           )}
 
-          {/* VIEW 5: LIVE SESSION MANAGER (ONLY ACTIVE POLLS APPEAR HERE) */}
+          {/* VIEW 5: LIVE SESSION MANAGER */}
           {view === 'session' && (
             <div className="space-y-6">
               <UniversalBackButton label="Back to Overview" />
